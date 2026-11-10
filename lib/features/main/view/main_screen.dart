@@ -23,6 +23,13 @@ class MainScreen extends StatelessWidget {
     return Scaffold(
       // IndexedStack: 탭 전환 시 각 화면의 상태(스크롤 등)를 유지한다.
       body: IndexedStack(index: viewModel.currentIndex, children: _tabs),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        shape: const CircleBorder(),
+        tooltip: '영수증 스캔',
+        onPressed: () => context.read<MainViewModel>().changeTab(1),
+        child: const Icon(Icons.document_scanner_outlined),
+      ),
       bottomNavigationBar: AppBottomNavBar(
         currentIndex: viewModel.currentIndex,
         onTap: context.read<MainViewModel>().changeTab,
