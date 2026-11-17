@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/widgets/food_background.dart';
 import '../../main/viewmodel/main_viewmodel.dart';
 import '../model/food_category.dart';
 import '../model/ingredient.dart';
@@ -138,7 +139,8 @@ class _FridgeScreenState extends State<FridgeScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: SafeArea(
+      body: FoodBackground(
+        child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
@@ -242,23 +244,28 @@ class _FridgeScreenState extends State<FridgeScreen> {
                 Expanded(
                   child: _RecipePreviewCard(
                     title: '김치볶음밥',
-                    tags: '#당근, #양파 활용',
-                    meta: '15분 | 쉬움',
-                    icon: Icons.rice_bowl,
+                    emoji: '🍚',
+                    deco: ['🥕', '🧅', '🥚'],
+                    ingredients: ['당근', '양파'],
+                    time: '15분',
+                    level: '쉬움',
                   ),
                 ),
                 SizedBox(width: 10),
                 Expanded(
                   child: _RecipePreviewCard(
                     title: '닭볶음탕',
-                    tags: '#닭고기, #감자 활용',
-                    meta: '25분 | 보통',
-                    icon: Icons.soup_kitchen,
+                    emoji: '🍲',
+                    deco: ['🍗', '🥔', '🌶️'],
+                    ingredients: ['닭고기', '감자'],
+                    time: '25분',
+                    level: '보통',
                   ),
                 ),
               ],
             ),
           ],
+        ),
         ),
       ),
     );
@@ -389,20 +396,34 @@ class _IngredientCard extends StatelessWidget {
 class _RecipePreviewCard extends StatelessWidget {
   const _RecipePreviewCard({
     required this.title,
-    required this.tags,
-    required this.meta,
-    required this.icon,
+    required this.emoji,
+    required this.deco,
+    required this.ingredients,
+    required this.time,
+    required this.level,
   });
 
   final String title;
-  final String tags;
-  final String meta;
-  final IconData icon;
+  final String emoji;
+  final List<String> deco; // 배경에 흩뿌릴 재료 이모지 3개
+  final List<String> ingredients;
+  final String time;
+  final String level;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
+
+    Widget badge(IconData icon, String text) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: scheme.primary),
+            const SizedBox(width: 3),
+            Text(text, style: theme.textTheme.bodySmall),
+          ],
+        );
+
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -410,13 +431,74 @@ class _RecipePreviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            height: 90,
+            height: 100,
             width: double.infinity,
-            color: scheme.secondaryContainer,
-            child: Icon(icon, size: 40, color: scheme.onSecondaryContainer),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [scheme.primaryContainer, scheme.tertiaryContainer],
+              ),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned(
+                  left: 12,
+                  top: 8,
+                  child: Transform.rotate(
+                    angle: -0.3,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: Text(deco[0], style: const TextStyle(fontSize: 22)),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 14,
+                  top: 12,
+                  child: Transform.rotate(
+                    angle: 0.35,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: Text(deco[1], style: const TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 24,
+                  bottom: 6,
+                  child: Transform.rotate(
+                    angle: -0.2,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: Text(deco[2], style: const TextStyle(fontSize: 18)),
+                    ),
+                  ),
+                ),
+                Text(emoji, style: const TextStyle(fontSize: 52)),
+                Positioned(
+                  left: 8,
+                  bottom: 8,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: scheme.surface.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '✨ AI 추천',
+                      style: theme.textTheme.labelSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -425,9 +507,31 @@ class _RecipePreviewCard extends StatelessWidget {
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 2),
-                Text(tags, style: theme.textTheme.bodySmall),
-                Text(meta, style: theme.textTheme.bodySmall),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    for (final i in ingredients)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(i, style: theme.textTheme.labelSmall),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    badge(Icons.schedule, time),
+                    const SizedBox(width: 10),
+                    badge(Icons.local_fire_department_outlined, level),
+                  ],
+                ),
               ],
             ),
           ),
