@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../fridge/model/ingredient.dart';
+import '../model/receipt_image.dart';
 
 class GeminiException implements Exception {
   GeminiException(this.message);
@@ -15,8 +16,8 @@ class GeminiException implements Exception {
 
 class GeminiService {
   GeminiService({String? apiKey, http.Client? client})
-      : _apiKey = apiKey ?? const String.fromEnvironment('GEMINI_API_KEY'),
-        _client = client ?? http.Client();
+    : _apiKey = apiKey ?? const String.fromEnvironment('GEMINI_API_KEY'),
+      _client = client ?? http.Client();
 
   // 실행 시: flutter run -d chrome --dart-define=GEMINI_API_KEY=AIza...
   // (키를 소스코드에 직접 넣거나 커밋하지 마세요)
@@ -30,7 +31,7 @@ class GeminiService {
       'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
 
   static const systemPrompt = '''
-너는 한국 마트 영수증 텍스트에서 "식재료"만 추출하는 파서다.
+너는 한국 마트 영수증(텍스트 또는 사진)에서 "식재료"만 추출하는 파서다.
 
 [출력 형식]
 반드시 아래 JSON 객체 하나만 출력한다. 설명, 마크다운, 코드블록은 절대 포함하지 않는다.
@@ -48,7 +49,25 @@ class GeminiService {
 ''';
 
   /// 영수증 원본 텍스트 -> Ingredient 리스트
-  Future<List<Ingredient>> parseReceipt(String receiptText) async {
+  Future<List<Ingredient>> parseReceipt(String receiptText) => _generate([
+    {'text': receiptText},
+  ]);
+
+  /// 영수증 사진 -> Ingredient 리스트.
+  /// 별도의 OCR 없이 Gemini가 사진을 직접 읽고 식재료로 정리한다.
+  Future<List<Ingredient>> parseReceiptImage(ReceiptImage image) => _generate([
+    {
+      'inlineData': {
+        'mimeType': image.mimeType,
+        'data': base64Encode(image.bytes),
+      },
+    },
+    {'text': '이 영수증 사진에서 식재료를 추출해줘.'},
+  ]);
+
+  Future<List<Ingredient>> _generate(
+    List<Map<String, Object>> userParts,
+  ) async {
     if (_apiKey.isEmpty) {
       throw GeminiException(
         'GEMINI_API_KEY가 설정되지 않았습니다. '
@@ -63,12 +82,7 @@ class GeminiService {
         ],
       },
       'contents': [
-        {
-          'role': 'user',
-          'parts': [
-            {'text': receiptText},
-          ],
-        },
+        {'role': 'user', 'parts': userParts},
       ],
       'generationConfig': {
         'temperature': 0,
@@ -117,8 +131,9 @@ class GeminiService {
     }
 
     try {
-      final content = jsonDecode(body)['candidates'][0]['content']['parts'][0]
-          ['text'] as String;
+      final content =
+          jsonDecode(body)['candidates'][0]['content']['parts'][0]['text']
+              as String;
       final parsed = jsonDecode(content);
       final list = (parsed is Map ? parsed['items'] : parsed) as List;
       return list

@@ -94,13 +94,15 @@ class _FridgeScreenState extends State<FridgeScreen> {
     );
 
     if (ok == true && name.text.trim().isNotEmpty && mounted) {
-      context.read<FridgeViewModel>().add(Ingredient(
-            name: name.text.trim(),
-            quantity: int.tryParse(qty.text) ?? 1,
-            unit: unit.text.trim().isEmpty ? '개' : unit.text.trim(),
-            expiryDays: int.tryParse(days.text) ?? 7,
-            category: category,
-          ));
+      context.read<FridgeViewModel>().add(
+        Ingredient(
+          name: name.text.trim(),
+          quantity: int.tryParse(qty.text) ?? 1,
+          unit: unit.text.trim().isEmpty ? '개' : unit.text.trim(),
+          expiryDays: int.tryParse(days.text) ?? 7,
+          category: category,
+        ),
+      );
     }
     name.dispose();
     qty.dispose();
@@ -130,7 +132,8 @@ class _FridgeScreenState extends State<FridgeScreen> {
   @override
   Widget build(BuildContext context) {
     final vm = context.read<MainViewModel>();
-    final items = context.watch<FridgeViewModel>().items;
+    final fridge = context.watch<FridgeViewModel>();
+    final items = fridge.items;
     // 선택한 분류에 항목이 하나도 없어지면(삭제 등) 전체로 되돌린다.
     final filter = items.any((e) => e.category == _filter) ? _filter : _all;
     final visible = filter == _all
@@ -141,132 +144,238 @@ class _FridgeScreenState extends State<FridgeScreen> {
     return Scaffold(
       body: FoodBackground(
         child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            // 상단 타이틀 + 알림
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'AI 냉장고 파먹기',
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
+          child: Column(
+            children: [
+              // 재료 선택 모드일 때만 위에 고정되는 안내 바
+              if (fridge.isSelecting)
+                _SelectionBar(
+                  count: fridge.selectedItems.length,
+                  onCancel: fridge.clearSelection,
+                  onConfirm: () {
+                    fridge.finishSelecting();
+                    vm.changeTab(2);
+                  },
                 ),
-                IconButton(
-                  icon: const Icon(Icons.notifications_none),
-                  onPressed: () {},
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _ScanBanner(onScan: () => vm.changeTab(1)),
-            const SizedBox(height: 24),
-            Text(
-              '내 냉장고 현황',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final c in [_all, ...FoodCategory.all])
-                    if (c == _all || items.any((e) => e.category == c))
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(
-                            c == _all
-                                ? '전체 ${items.length}'
-                                : '${FoodCategory.emojiOf(c)} $c '
-                                    '${items.where((e) => e.category == c).length}',
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  children: [
+                    // 상단 타이틀 + 알림
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'AI 냉장고 파먹기',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          selected: _filter == c,
-                          onSelected: (_) => setState(() => _filter = c),
                         ),
-                      ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (visible.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: Text('이 분류에 식재료가 없어요')),
-              ),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: visible.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                mainAxisExtent: 76,
-              ),
-              itemBuilder: (_, i) => _IngredientCard(
-                item: visible[i],
-                // 필터 중에도 전체 목록 기준 위치로 삭제한다.
-                onDelete: () => _delete(items.indexOf(visible[i])),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.tonalIcon(
-                onPressed: _showAddDialog,
-                icon: const Icon(Icons.add),
-                label: const Text('식재료 수동 추가'),
-              ),
-            ),
-            const SizedBox(height: 24),
-            InkWell(
-              onTap: () => vm.changeTab(2),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '남은 재료로 AI 추천 레시피',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                        IconButton(
+                          icon: const Icon(Icons.notifications_none),
+                          onPressed: () {},
+                        ),
+                      ],
                     ),
-                  ),
-                  const Icon(Icons.chevron_right),
-                ],
+                    const SizedBox(height: 8),
+                    _ScanBanner(onScan: () => vm.changeTab(1)),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '내 냉장고 현황',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (!fridge.isSelecting)
+                          FilledButton.tonalIcon(
+                            onPressed: items.isEmpty
+                                ? null
+                                : fridge.startSelecting,
+                            icon: const Icon(Icons.checklist, size: 18),
+                            label: const Text('재료 선택'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final c in [_all, ...FoodCategory.all])
+                            if (c == _all || items.any((e) => e.category == c))
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(
+                                    c == _all
+                                        ? '전체 ${items.length}'
+                                        : '${FoodCategory.emojiOf(c)} $c '
+                                              '${items.where((e) => e.category == c).length}',
+                                  ),
+                                  selected: _filter == c,
+                                  onSelected: (_) =>
+                                      setState(() => _filter = c),
+                                ),
+                              ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (visible.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: Text('이 분류에 식재료가 없어요')),
+                      ),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: visible.length,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            mainAxisExtent: 76,
+                          ),
+                      itemBuilder: (_, i) {
+                        final item = visible[i];
+                        // 필터 중에도 전체 목록 기준 위치로 삭제한다.
+                        void onDelete() => _delete(items.indexOf(item));
+                        // 카드를 옆으로 밀어서도 소진(삭제) 처리할 수 있다.
+                        // 선택 모드에서는 실수로 지워지지 않도록 스와이프를 끈다.
+                        return Dismissible(
+                          key: ObjectKey(item),
+                          direction: fridge.isSelecting
+                              ? DismissDirection.none
+                              : DismissDirection.horizontal,
+                          onDismissed: (_) => onDelete(),
+                          background: const _SwipeBackground(
+                            Alignment.centerLeft,
+                          ),
+                          secondaryBackground: const _SwipeBackground(
+                            Alignment.centerRight,
+                          ),
+                          child: GestureDetector(
+                            onTap: fridge.isSelecting
+                                ? () => fridge.toggleSelected(item)
+                                : null,
+                            child: _IngredientCard(
+                              item: item,
+                              selecting: fridge.isSelecting,
+                              selected: fridge.isSelected(item),
+                              onDelete: onDelete,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton.tonalIcon(
+                        onPressed: _showAddDialog,
+                        icon: const Icon(Icons.add),
+                        label: const Text('식재료 수동 추가'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    InkWell(
+                      onTap: () => vm.changeTab(2),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '남은 재료로 AI 추천 레시피',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Row(
+                      children: [
+                        Expanded(
+                          child: _RecipePreviewCard(
+                            title: '김치볶음밥',
+                            emoji: '🍚',
+                            deco: ['🥕', '🧅', '🥚'],
+                            ingredients: ['당근', '양파'],
+                            time: '15분',
+                            level: '쉬움',
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: _RecipePreviewCard(
+                            title: '닭볶음탕',
+                            emoji: '🍲',
+                            deco: ['🍗', '🥔', '🌶️'],
+                            ingredients: ['닭고기', '감자'],
+                            time: '25분',
+                            level: '보통',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 재료 선택 모드에서 위에 보이는 "N개 선택됨" 바.
+class _SelectionBar extends StatelessWidget {
+  const _SelectionBar({
+    required this.count,
+    required this.onCancel,
+    required this.onConfirm,
+  });
+
+  final int count;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '$count개 선택됨',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: scheme.onPrimaryContainer,
               ),
             ),
-            const SizedBox(height: 12),
-            const Row(
-              children: [
-                Expanded(
-                  child: _RecipePreviewCard(
-                    title: '김치볶음밥',
-                    emoji: '🍚',
-                    deco: ['🥕', '🧅', '🥚'],
-                    ingredients: ['당근', '양파'],
-                    time: '15분',
-                    level: '쉬움',
-                  ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: _RecipePreviewCard(
-                    title: '닭볶음탕',
-                    emoji: '🍲',
-                    deco: ['🍗', '🥔', '🌶️'],
-                    ingredients: ['닭고기', '감자'],
-                    time: '25분',
-                    level: '보통',
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        ),
+          ),
+          TextButton(onPressed: onCancel, child: const Text('취소')),
+          FilledButton(
+            onPressed: count == 0 ? null : onConfirm,
+            child: const Text('AI 레시피 만들기'),
+          ),
+        ],
       ),
     );
   }
@@ -297,9 +406,9 @@ class _ScanBanner extends StatelessWidget {
                 Text(
                   '영수증 한 장으로 끝내는\n냉장고 관리!',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.onPrimaryContainer,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onPrimaryContainer,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
@@ -321,10 +430,43 @@ class _ScanBanner extends StatelessWidget {
   }
 }
 
+/// 카드를 밀 때 뒤에 보이는 삭제 배경.
+class _SwipeBackground extends StatelessWidget {
+  const _SwipeBackground(this.alignment);
+
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      alignment: alignment,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(Icons.delete_outline, color: scheme.onErrorContainer),
+    );
+  }
+}
+
 class _IngredientCard extends StatelessWidget {
-  const _IngredientCard({required this.item, required this.onDelete});
+  const _IngredientCard({
+    required this.item,
+    required this.selecting,
+    required this.selected,
+    required this.onDelete,
+  });
 
   final Ingredient item;
+
+  /// Whether the fridge is in picking mode, which swaps the delete button
+  /// for a check mark.
+  final bool selecting;
+
+  /// Whether [item] is picked for a recipe.
+  final bool selected;
   final VoidCallback onDelete;
 
   @override
@@ -333,8 +475,8 @@ class _IngredientCard extends StatelessWidget {
     final Color color = item.expiryDays <= 3
         ? Colors.red
         : item.expiryDays <= 7
-            ? Colors.orange
-            : Colors.green;
+        ? Colors.orange
+        : Colors.green;
     final theme = Theme.of(context);
 
     return Container(
@@ -342,7 +484,9 @@ class _IngredientCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
+        border: selected
+            ? Border.all(color: theme.colorScheme.primary, width: 2.5)
+            : Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -357,8 +501,9 @@ class _IngredientCard extends StatelessWidget {
                   '${item.name} (${item.quantity}${item.unit})',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text.rich(
                   TextSpan(
@@ -378,15 +523,24 @@ class _IngredientCard extends StatelessWidget {
               ],
             ),
           ),
-          if (item.expiryDays <= 3)
-            Icon(Icons.error, size: 18, color: color),
-          IconButton(
-            tooltip: '삭제',
-            visualDensity: VisualDensity.compact,
-            iconSize: 18,
-            icon: const Icon(Icons.close),
-            onPressed: onDelete,
-          ),
+          if (selecting)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Icon(
+                selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: theme.colorScheme.primary,
+              ),
+            )
+          else ...[
+            if (item.expiryDays <= 3) Icon(Icons.error, size: 18, color: color),
+            IconButton(
+              tooltip: '삭제',
+              visualDensity: VisualDensity.compact,
+              iconSize: 18,
+              icon: const Icon(Icons.close),
+              onPressed: onDelete,
+            ),
+          ],
         ],
       ),
     );
@@ -416,13 +570,13 @@ class _RecipePreviewCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     Widget badge(IconData icon, String text) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: scheme.primary),
-            const SizedBox(width: 3),
-            Text(text, style: theme.textTheme.bodySmall),
-          ],
-        );
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: scheme.primary),
+        const SizedBox(width: 3),
+        Text(text, style: theme.textTheme.bodySmall),
+      ],
+    );
 
     return Card(
       margin: EdgeInsets.zero,
@@ -450,7 +604,10 @@ class _RecipePreviewCard extends StatelessWidget {
                     angle: -0.3,
                     child: Opacity(
                       opacity: 0.5,
-                      child: Text(deco[0], style: const TextStyle(fontSize: 22)),
+                      child: Text(
+                        deco[0],
+                        style: const TextStyle(fontSize: 22),
+                      ),
                     ),
                   ),
                 ),
@@ -461,7 +618,10 @@ class _RecipePreviewCard extends StatelessWidget {
                     angle: 0.35,
                     child: Opacity(
                       opacity: 0.5,
-                      child: Text(deco[1], style: const TextStyle(fontSize: 20)),
+                      child: Text(
+                        deco[1],
+                        style: const TextStyle(fontSize: 20),
+                      ),
                     ),
                   ),
                 ),
@@ -472,7 +632,10 @@ class _RecipePreviewCard extends StatelessWidget {
                     angle: -0.2,
                     child: Opacity(
                       opacity: 0.5,
-                      child: Text(deco[2], style: const TextStyle(fontSize: 18)),
+                      child: Text(
+                        deco[2],
+                        style: const TextStyle(fontSize: 18),
+                      ),
                     ),
                   ),
                 ),
@@ -481,16 +644,19 @@ class _RecipePreviewCard extends StatelessWidget {
                   left: 8,
                   bottom: 8,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: scheme.surface.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       '✨ AI 추천',
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -504,8 +670,9 @@ class _RecipePreviewCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Wrap(
@@ -515,7 +682,9 @@ class _RecipePreviewCard extends StatelessWidget {
                     for (final i in ingredients)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: scheme.primaryContainer.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(20),

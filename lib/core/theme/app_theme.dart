@@ -14,14 +14,13 @@ class AppTheme {
 
   static ThemeData _build(Brightness brightness) {
     final isLight = brightness == Brightness.light;
-    final scheme = ColorScheme.fromSeed(
-      seedColor: seed,
-      brightness: brightness,
-    ).copyWith(
-      surface: isLight ? _creamLight : _creamDark,
-      surfaceContainerHigh:
-          isLight ? const Color(0xFFFFFDF8) : const Color(0xFF3A2D23),
-    );
+    final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness)
+        .copyWith(
+          surface: isLight ? _creamLight : _creamDark,
+          surfaceContainerHigh: isLight
+              ? const Color(0xFFFFFDF8)
+              : const Color(0xFF3A2D23),
+        );
 
     return ThemeData(
       useMaterial3: true,
@@ -36,9 +35,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         color: scheme.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       chipTheme: ChipThemeData(
         shape: const StadiumBorder(),
@@ -47,15 +44,11 @@ class AppTheme {
         selectedColor: scheme.primaryContainer,
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          shape: const StadiumBorder(),
-        ),
+        style: FilledButton.styleFrom(shape: const StadiumBorder()),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),

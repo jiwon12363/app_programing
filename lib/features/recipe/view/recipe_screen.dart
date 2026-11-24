@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/widgets/food_background.dart';
+import '../../fridge/model/ingredient.dart';
 import '../../fridge/viewmodel/fridge_viewmodel.dart';
+import '../../main/viewmodel/main_viewmodel.dart';
 
 /// 추천 레시피 샘플 데이터.
 /// TODO: Gemini 연동 시 냉장고 재료 기반 AI 추천 결과로 교체
@@ -31,13 +33,25 @@ class RecipeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final items = context.watch<FridgeViewModel>().items;
+    final fridge = context.watch<FridgeViewModel>();
+    final items = fridge.items;
+    final picked = fridge.selectedItems;
     final have = items.map((e) => e.name).toList();
-    bool owns(String need) => have.any((h) => h.contains(need) || need.contains(h));
+    final pickedNames = picked.map((e) => e.name).toList();
+    bool matches(String need, List<String> names) =>
+        names.any((h) => h.contains(need) || need.contains(h));
+    bool owns(String need) => matches(need, have);
 
-    // 보유 재료가 많은 순으로 정렬
-    final sorted = [..._recipes]..sort((a, b) =>
-        b.needs.where(owns).length.compareTo(a.needs.where(owns).length));
+    // 고른 재료가 많이 들어간 순, 같으면 보유 재료가 많은 순으로 정렬
+    int pickedCount(_Recipe r) =>
+        r.needs.where((n) => matches(n, pickedNames)).length;
+    final sorted = [..._recipes]
+      ..sort((a, b) {
+        final byPicked = pickedCount(b).compareTo(pickedCount(a));
+        return byPicked != 0
+            ? byPicked
+            : b.needs.where(owns).length.compareTo(a.needs.where(owns).length);
+      });
     final urgent = items.where((e) => e.expiryDays <= 3).toList();
 
     return Scaffold(
@@ -49,8 +63,9 @@ class RecipeScreen extends StatelessWidget {
               Text(
                 'AI 추천 레시피',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 16),
               // 임박 재료 안내 배너
@@ -84,8 +99,8 @@ class RecipeScreen extends StatelessWidget {
                             urgent.isEmpty
                                 ? '냉장고 속 재료로 만들 수 있는 요리예요'
                                 : urgent
-                                    .map((e) => '${e.emoji}${e.name}')
-                                    .join('  '),
+                                      .map((e) => '${e.emoji}${e.name}')
+                                      .join('  '),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: scheme.onPrimaryContainer,
                             ),
@@ -97,10 +112,17 @@ class RecipeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
+              _PickedIngredients(
+                picked: picked,
+                onRemove: fridge.toggleSelected,
+                onPick: () => context.read<MainViewModel>().changeTab(0),
+              ),
+              const SizedBox(height: 20),
               Text(
                 '내 냉장고로 만들 수 있는 요리',
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
               for (final r in sorted) ...[
@@ -109,6 +131,71 @@ class RecipeScreen extends StatelessWidget {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 냉장고 탭에서 고른 재료를 칩으로 보여 주는 영역.
+class _PickedIngredients extends StatelessWidget {
+  const _PickedIngredients({
+    required this.picked,
+    required this.onRemove,
+    required this.onPick,
+  });
+
+  final List<Ingredient> picked;
+  final ValueChanged<Ingredient> onRemove;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '오늘 쓸 재료',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onPick,
+                  icon: const Icon(Icons.kitchen_outlined, size: 18),
+                  label: Text(picked.isEmpty ? '냉장고에서 고르기' : '다시 고르기'),
+                ),
+              ],
+            ),
+            if (picked.isEmpty)
+              Text(
+                '냉장고 탭의 "재료 선택" 버튼으로 오늘 쓸 재료를 골라 보세요.',
+                style: theme.textTheme.bodySmall,
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  for (final item in picked)
+                    InputChip(
+                      label: Text('${item.emoji} ${item.name}'),
+                      backgroundColor: scheme.primaryContainer,
+                      onDeleted: () => onRemove(item),
+                    ),
+                ],
+              ),
+          ],
         ),
       ),
     );
@@ -156,8 +243,9 @@ class _RecipeTile extends StatelessWidget {
                 children: [
                   Text(
                     recipe.title,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -166,8 +254,11 @@ class _RecipeTile extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(recipe.time, style: theme.textTheme.bodySmall),
                       const SizedBox(width: 10),
-                      Icon(Icons.local_fire_department_outlined,
-                          size: 14, color: scheme.primary),
+                      Icon(
+                        Icons.local_fire_department_outlined,
+                        size: 14,
+                        color: scheme.primary,
+                      ),
                       const SizedBox(width: 3),
                       Text(recipe.level, style: theme.textTheme.bodySmall),
                     ],
@@ -180,7 +271,9 @@ class _RecipeTile extends StatelessWidget {
                       for (final n in recipe.needs)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: owns(n)
                                 ? scheme.primaryContainer
@@ -193,8 +286,9 @@ class _RecipeTile extends StatelessWidget {
                               color: owns(n)
                                   ? scheme.onPrimaryContainer
                                   : scheme.onSurfaceVariant,
-                              fontWeight:
-                                  owns(n) ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: owns(n)
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                         ),
@@ -216,8 +310,9 @@ class _RecipeTile extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         '재료 $haveCount/${recipe.needs.length}',
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),

@@ -10,6 +10,9 @@ class Ingredient {
     this.category = FoodCategory.etc,
   });
 
+  /// Id of the stored copy of this ingredient, set by the repository.
+  String? id;
+
   final String name;
 
   /// 보관 방식: 냉장 / 냉동 / 실온
@@ -41,11 +44,11 @@ class Ingredient {
   }
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'quantity': quantity,
-        'unit': unit,
-        'expiry_days': expiryDays,
-        'storage': storage,
-        'category': category,
-      };
+    'name': name,
+    'quantity': quantity,
+    'unit': unit,
+    'expiry_days': expiryDays,
+    'storage': storage,
+    'category': category,
+  };
 }

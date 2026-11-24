@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
+import 'features/fridge/repository/firestore_fridge_repository.dart';
 import 'features/fridge/viewmodel/fridge_viewmodel.dart';
 import 'features/main/view/main_screen.dart';
 import 'features/main/viewmodel/main_viewmodel.dart';
@@ -15,7 +16,9 @@ class FridgeApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => MainViewModel()),
-        ChangeNotifierProvider(create: (_) => FridgeViewModel()),
+        ChangeNotifierProvider(
+          create: (_) => FridgeViewModel(FirestoreFridgeRepository()),
+        ),
         // TODO: ScanViewModel, RecipeViewModel 등록
       ],
       child: MaterialApp(

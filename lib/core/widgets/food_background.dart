@@ -51,7 +51,10 @@ class FoodBackground extends StatelessWidget {
                           opacity: dark ? 0.08 : 0.16,
                           child: Transform.rotate(
                             angle: angle,
-                            child: Text(emoji, style: TextStyle(fontSize: size)),
+                            child: Text(
+                              emoji,
+                              style: TextStyle(fontSize: size),
+                            ),
                           ),
                         ),
                       ),

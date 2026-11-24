@@ -10,11 +10,7 @@ import 'widgets/app_bottom_nav_bar.dart';
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
-  static const _tabs = <Widget>[
-    FridgeScreen(),
-    ScanScreen(),
-    RecipeScreen(),
-  ];
+  static const _tabs = <Widget>[FridgeScreen(), ScanScreen(), RecipeScreen()];
 
   @override
   Widget build(BuildContext context) {

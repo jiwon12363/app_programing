@@ -38,10 +38,10 @@ class AppBottomNavBar extends StatelessWidget {
                 child: Text(
                   '스캔',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: currentIndex == 1
-                            ? Theme.of(context).colorScheme.primary
-                            : null,
-                      ),
+                    color: currentIndex == 1
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
                 ),
               ),
             ),
@@ -89,10 +89,10 @@ class _NavItem extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: color, fontWeight: selected ? FontWeight.bold : null),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: selected ? FontWeight.bold : null,
+            ),
           ),
         ],
       ),

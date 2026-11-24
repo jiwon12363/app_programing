@@ -1,20 +1,28 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
 import '../../fridge/model/ingredient.dart';
 import '../../fridge/viewmodel/fridge_viewmodel.dart';
 import '../../main/viewmodel/main_viewmodel.dart';
+import '../model/receipt_image.dart';
 import '../service/gemini_service.dart';
 import '../service/mock_receipt_parser.dart';
 
 /// 영수증 텍스트를 AI로 분석한 뒤, 냉장고에 넣기 전 확인/수정하는 대기 화면.
 /// [initialItems]를 주면 AI 호출 없이 바로 표시한다. (테스트/미리보기용)
 class StandbyScreen extends StatefulWidget {
-  const StandbyScreen({super.key, this.receiptText, this.initialItems})
-      : assert(receiptText != null || initialItems != null);
+  const StandbyScreen({
+    super.key,
+    this.receiptText,
+    this.receiptImage,
+    this.initialItems,
+  }) : assert(
+         receiptText != null || receiptImage != null || initialItems != null,
+       );
 
   final String? receiptText;
+  final ReceiptImage? receiptImage;
   final List<Ingredient>? initialItems;
 
   @override
@@ -47,10 +55,27 @@ class _StandbyScreenState extends State<StandbyScreen> {
     });
     try {
       final service = GeminiService();
+      final image = widget.receiptImage;
+      if (image != null) {
+        if (!service.hasApiKey) {
+          throw GeminiException(
+            '사진을 분석하려면 GEMINI_API_KEY가 필요해요.\n'
+            '--dart-define=GEMINI_API_KEY=... 로 실행해 주세요.',
+          );
+        }
+        final items = await service.parseReceiptImage(image);
+        if (!mounted) return;
+        setState(() {
+          _items = items;
+          _loading = false;
+        });
+        return;
+      }
       if (!service.hasApiKey) {
         // API 키가 없으면 데모 모드: 로컬 키워드 파서로 영수증을 분석한다.
-        final items =
-            await const MockReceiptParser().parseReceipt(widget.receiptText!);
+        final items = await const MockReceiptParser().parseReceipt(
+          widget.receiptText!,
+        );
         if (!mounted) return;
         setState(() {
           _usingSample = true;
@@ -75,10 +100,7 @@ class _StandbyScreenState extends State<StandbyScreen> {
   }
 
   void _saveToFirestore() {
-    // TODO: Firebase 연동 후 실제 Firestore 저장으로 교체
-    final data = _items.map((e) => e.toJson()).toList();
-    print('Firestore에 저장 완료: $data');
-    // 시연용: 메모리의 냉장고 목록에 추가하고 내 냉장고 탭으로 이동한다.
+    // FridgeViewModel이 Repository(Firestore)에 저장한다.
     context.read<FridgeViewModel>().addAll(_items);
     context.read<MainViewModel>().changeTab(0);
     final messenger = ScaffoldMessenger.of(context);
@@ -243,4 +265,3 @@ class _IngredientTile extends StatelessWidget {
     );
   }
 }
-
